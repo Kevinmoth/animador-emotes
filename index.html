@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,6 +13,10 @@
       <img class="navbar-logo" src="Icons/logo.png" alt="Logo Animador 2D">
       <span class="navbar-title">Animador 2D</span>
     </div>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar modo oscuro">
+      <span id="theme-icon" class="theme-icon"></span>
+      <span id="theme-label">Modo oscuro</span>
+    </button>
   </nav>
 
   <main class="app-main">
@@ -43,6 +47,23 @@
       </div>
 
       <div class="controls-column">
+        <div class="panel">
+          <h2>Recorte y encuadre</h2>
+          <div class="crop-editor">
+            <canvas id="crop-canvas" class="crop-canvas"></canvas>
+            <p class="crop-hint">Arrastra el recuadro para recortar y usa las esquinas para ajustarlo.</p>
+            <div class="crop-row">
+              <label for="crop-padding">Borde</label>
+              <input type="range" id="crop-padding" min="0" max="50" step="1" value="0">
+              <span id="crop-padding-val" class="param-val">0%</span>
+            </div>
+            <p class="crop-hint">Agrega margen alrededor para que la animación no se salga del marco.</p>
+            <div class="crop-row">
+              <button id="crop-reset" class="btn btn-secondary">Restablecer recorte</button>
+            </div>
+          </div>
+        </div>
+
         <div class="panel">
           <h2>Animaciones</h2>
           <div id="animation-list" class="animation-list"></div>

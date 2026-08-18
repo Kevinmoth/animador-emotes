@@ -25,12 +25,21 @@
     progressBar: document.getElementById('progress-bar'),
     progressText: document.getElementById('progress-text'),
     errorBox: document.getElementById('error-box'),
-    errorText: document.getElementById('error-text')
+    errorText: document.getElementById('error-text'),
+    themeToggle: document.getElementById('theme-toggle'),
+    themeLabel: document.getElementById('theme-label'),
+    cropCanvas: document.getElementById('crop-canvas'),
+    cropPadding: document.getElementById('crop-padding'),
+    cropPaddingVal: document.getElementById('crop-padding-val'),
+    cropReset: document.getElementById('crop-reset')
   };
 
   const state = {
     image: null,
+    originalImage: null,
     imageName: '',
+    crop: null,
+    padding: 0,
     currentAnimation: null,
     animator: null,
     exportCanvas: null,
@@ -55,7 +64,10 @@
   function resetToInit() {
     if (previewRaf) cancelAnimationFrame(previewRaf);
     state.image = null;
+    state.originalImage = null;
     state.imageName = '';
+    state.crop = null;
+    state.padding = 0;
     state.currentAnimation = null;
     state.animator = null;
     state.generating = false;
@@ -95,9 +107,10 @@
           showError('Advertencia: imagen muy grande (>4096px). Puede tardar en procesar.');
         }
 
-        state.image = img;
+        state.originalImage = img;
         state.imageName = file.name;
         setupCanvas();
+        setupCropEditor();
         setupAnimations();
         selectAnimation(Object.keys(AnimationRegistry)[0]);
         setState('loaded');
@@ -114,7 +127,6 @@
     UI.previewCanvas.height = size;
     UI.previewStage.style.width = size + 'px';
     UI.previewStage.style.height = size + 'px';
-    UI.imageInfo.textContent = `${state.imageName} · ${state.image.width}x${state.image.height}px`;
   }
 
   function setupAnimations() {
@@ -310,6 +322,223 @@
     return name.replace(/\.[^.]+$/, '') || 'animation';
   }
 
+  // ==== Recorte y encuadre ====
+  let cropDrag = null;
+  let rebuildPending = false;
+
+  function setupCropEditor() {
+    state.crop = { x: 0, y: 0, w: 1, h: 1 };
+    state.padding = 0;
+    state.animator = null;
+    UI.cropPadding.value = 0;
+    UI.cropPaddingVal.textContent = '0%';
+    layoutCropCanvas();
+    drawCropOverlay();
+    buildSourceImage();
+  }
+
+  function layoutCropCanvas() {
+    const img = state.originalImage;
+    const maxW = 380, maxH = 320;
+    const ratio = Math.min(maxW / img.width, maxH / img.height);
+    UI.cropCanvas.width = Math.max(1, Math.round(img.width * ratio));
+    UI.cropCanvas.height = Math.max(1, Math.round(img.height * ratio));
+  }
+
+  function cropRectPx() {
+    return {
+      x: state.crop.x * UI.cropCanvas.width,
+      y: state.crop.y * UI.cropCanvas.height,
+      w: state.crop.w * UI.cropCanvas.width,
+      h: state.crop.h * UI.cropCanvas.height
+    };
+  }
+
+  function drawCropOverlay() {
+    const cv = UI.cropCanvas;
+    const ctx = cv.getContext('2d');
+    const img = state.originalImage;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+
+    const r = cropRectPx();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, cv.width, r.y);
+    ctx.fillRect(0, r.y + r.h, cv.width, cv.height - r.y - r.h);
+    ctx.fillRect(0, r.y, r.x, r.h);
+    ctx.fillRect(r.x + r.w, r.y, cv.width - r.x - r.w, r.h);
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+    const hs = 6;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#0071e3';
+    ctx.lineWidth = 2;
+    const corners = [
+      [r.x, r.y], [r.x + r.w, r.y],
+      [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]
+    ];
+    corners.forEach(([cx, cy]) => {
+      ctx.fillRect(cx - hs, cy - hs, hs * 2, hs * 2);
+      ctx.strokeRect(cx - hs, cy - hs, hs * 2, hs * 2);
+    });
+  }
+
+  function buildSourceImage() {
+    const img = state.originalImage;
+    if (!img) return;
+    const crop = state.crop;
+    const padPct = state.padding;
+    const cw = crop.w * img.width;
+    const ch = crop.h * img.height;
+    const padW = (cw * padPct) / 100;
+    const padH = (ch * padPct) / 100;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(cw + padW * 2));
+    canvas.height = Math.max(1, Math.round(ch + padH * 2));
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      img,
+      crop.x * img.width, crop.y * img.height, cw, ch,
+      padW, padH, cw, ch
+    );
+    state.image = canvas;
+    updateImageInfo();
+  }
+
+  function updateImageInfo() {
+    const img = state.image;
+    if (!img || !state.originalImage) return;
+    if (img.width === state.originalImage.width && img.height === state.originalImage.height) {
+      UI.imageInfo.textContent = `${state.imageName} · ${img.width}x${img.height}px`;
+    } else {
+      UI.imageInfo.textContent = `${state.imageName} · fuente ${state.originalImage.width}x${state.originalImage.height}px → ${img.width}x${img.height}px`;
+    }
+  }
+
+  function scheduleRebuild() {
+    if (rebuildPending) return;
+    rebuildPending = true;
+    requestAnimationFrame(() => {
+      rebuildPending = false;
+      buildSourceImage();
+      state.animator = null;
+      restartPreview();
+    });
+  }
+
+  function cropEventPos(e) {
+    const rect = UI.cropCanvas.getBoundingClientRect();
+    const scaleX = UI.cropCanvas.width / rect.width;
+    const scaleY = UI.cropCanvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  function hitCropHandle(px) {
+    const r = cropRectPx();
+    const h = 12;
+    if (Math.abs(px.x - r.x) <= h && Math.abs(px.y - r.y) <= h) return 'nw';
+    if (Math.abs(px.x - (r.x + r.w)) <= h && Math.abs(px.y - r.y) <= h) return 'ne';
+    if (Math.abs(px.x - r.x) <= h && Math.abs(px.y - (r.y + r.h)) <= h) return 'sw';
+    if (Math.abs(px.x - (r.x + r.w)) <= h && Math.abs(px.y - (r.y + r.h)) <= h) return 'se';
+    return null;
+  }
+
+  function isInsideCrop(px) {
+    const r = cropRectPx();
+    return px.x >= r.x && px.x <= r.x + r.w && px.y >= r.y && px.y <= r.y + r.h;
+  }
+
+  UI.cropCanvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    UI.cropCanvas.setPointerCapture(e.pointerId);
+    const px = cropEventPos(e);
+    const handle = hitCropHandle(px);
+    const mode = handle || (isInsideCrop(px) ? 'move' : null);
+    if (!mode) return;
+    cropDrag = { mode, startX: px.x, startY: px.y, start: { ...state.crop } };
+    UI.cropCanvas.style.cursor = 'grabbing';
+  });
+
+  UI.cropCanvas.addEventListener('pointermove', (e) => {
+    if (cropDrag) {
+      const px = cropEventPos(e);
+      const dx = (px.x - cropDrag.startX) / UI.cropCanvas.width;
+      const dy = (px.y - cropDrag.startY) / UI.cropCanvas.height;
+      const s = cropDrag.start;
+      const MIN = 0.05;
+      let c;
+
+      if (cropDrag.mode === 'move') {
+        c = {
+          x: Math.max(0, Math.min(1 - s.w, s.x + dx)),
+          y: Math.max(0, Math.min(1 - s.h, s.y + dy)),
+          w: s.w,
+          h: s.h
+        };
+      } else {
+        let x0 = s.x, y0 = s.y, x1 = s.x + s.w, y1 = s.y + s.h;
+        if (cropDrag.mode.indexOf('w') !== -1) x0 = s.x + dx;
+        if (cropDrag.mode.indexOf('e') !== -1) x1 = s.x + s.w + dx;
+        if (cropDrag.mode.indexOf('n') !== -1) y0 = s.y + dy;
+        if (cropDrag.mode.indexOf('s') !== -1) y1 = s.y + s.h + dy;
+        x0 = Math.max(0, Math.min(x0, 1 - MIN));
+        x1 = Math.min(1, Math.max(x1, MIN + x0));
+        if (x1 - x0 < MIN) x1 = x0 + MIN;
+        y0 = Math.max(0, Math.min(y0, 1 - MIN));
+        y1 = Math.min(1, Math.max(y1, MIN + y0));
+        if (y1 - y0 < MIN) y1 = y0 + MIN;
+        c = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+      }
+      state.crop = c;
+      drawCropOverlay();
+      scheduleRebuild();
+      return;
+    }
+
+    const px = cropEventPos(e);
+    const handle = hitCropHandle(px);
+    const inside = isInsideCrop(px);
+    if (handle) {
+      UI.cropCanvas.style.cursor = (handle === 'nw' || handle === 'se')
+        ? 'nwse-resize'
+        : 'nesw-resize';
+    } else if (inside) {
+      UI.cropCanvas.style.cursor = 'move';
+    } else {
+      UI.cropCanvas.style.cursor = 'crosshair';
+    }
+  });
+
+  UI.cropCanvas.addEventListener('pointerup', () => {
+    cropDrag = null;
+    UI.cropCanvas.style.cursor = 'crosshair';
+  });
+
+  UI.cropReset.addEventListener('click', () => {
+    state.crop = { x: 0, y: 0, w: 1, h: 1 };
+    state.padding = 0;
+    UI.cropPadding.value = 0;
+    UI.cropPaddingVal.textContent = '0%';
+    drawCropOverlay();
+    buildSourceImage();
+    state.animator = null;
+    restartPreview();
+  });
+
+  UI.cropPadding.addEventListener('input', () => {
+    state.padding = parseInt(UI.cropPadding.value, 10) || 0;
+    UI.cropPaddingVal.textContent = state.padding + '%';
+    buildSourceImage();
+    state.animator = null;
+    restartPreview();
+  });
+
   // ==== Event listeners ====
   ['dragenter', 'dragover'].forEach(ev => {
     UI.dropZone.addEventListener(ev, (e) => {
@@ -347,6 +576,25 @@
   });
   UI.btnGenerate.addEventListener('click', generateGif);
   UI.btnReset.addEventListener('click', resetToInit);
+
+  // ==== Modo oscuro ====
+  const THEME_KEY = 'animador-theme';
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    if (UI.themeLabel) {
+      UI.themeLabel.textContent = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+    }
+  }
+  UI.themeToggle.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  });
+  try {
+    applyTheme(localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light');
+  } catch (e) {
+    applyTheme('light');
+  }
 
   // Inicialización
   setState('init');
