@@ -46,10 +46,16 @@ class Animator {
   }
 
   renderFrame(progress) {
-    const transform = this.animation.getFrame(progress);
+    const frame = this.animation.getFrame(progress);
     const imageRect = this._fitImage();
-    CanvasRenderer.drawFrame(this.ctx, this.canvas.width, this.image, imageRect, transform);
-    return transform;
+    if (frame.slices && frame.slices.length) {
+      CanvasRenderer.drawSlices(this.ctx, this.canvas.width, this.image, imageRect, frame);
+    } else if (frame.layers && frame.layers.length) {
+      CanvasRenderer.drawFrameLayers(this.ctx, this.canvas.width, this.image, imageRect, frame);
+    } else {
+      CanvasRenderer.drawFrame(this.ctx, this.canvas.width, this.image, imageRect, frame);
+    }
+    return frame;
   }
 
   renderExportFrame(progress) {
