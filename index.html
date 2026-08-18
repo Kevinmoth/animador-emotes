@@ -35,7 +35,14 @@
     </section>
 
     <section id="state-loaded" class="workspace hidden">
-      <aside class="sidebar">
+      <div class="preview-column">
+        <div id="preview-stage" class="preview-stage">
+          <canvas id="preview-canvas"></canvas>
+        </div>
+        <p id="image-info" class="image-info"></p>
+      </div>
+
+      <div class="controls-column">
         <div class="panel">
           <h2>Animaciones</h2>
           <div id="animation-list" class="animation-list"></div>
@@ -69,16 +76,9 @@
 
         <div class="panel actions">
           <button id="btn-generate" class="btn btn-primary">Generar GIF</button>
-          <button id="btn-reset" class="btn btn-secondary">Nueva imagen</button>
           <a id="btn-download" class="btn btn-primary disabled">Descargar</a>
+          <button id="btn-reset" class="btn btn-secondary">Nueva imagen</button>
         </div>
-      </aside>
-
-      <div class="preview-column">
-        <div id="preview-stage" class="preview-stage">
-          <canvas id="preview-canvas"></canvas>
-        </div>
-        <p id="image-info" class="image-info"></p>
       </div>
     </section>
 
