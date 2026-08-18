@@ -294,12 +294,15 @@
       UI.btnDownload.href = url;
       UI.btnDownload.download = `${baseName(state.imageName)}_${state.currentAnimation}.gif`;
       UI.btnDownload.classList.remove('disabled');
+
+      setState('loaded');
     } catch (err) {
       showError(err.message || 'Error al generar el GIF.');
       setState('loaded');
     } finally {
       state.generating = false;
       UI.btnGenerate.disabled = false;
+      restartPreview();
     }
   }
 
