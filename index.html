@@ -4,17 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Animador 2D · Generador de GIF</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="icon" href="Icons/logo.png">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="app-header">
-    <h1>Animador 2D</h1>
-    <p class="tagline">Carga una imagen, elige una animación cinematográfica y descarga tu GIF</p>
-  </header>
+  <nav class="navbar">
+    <div class="navbar-content">
+      <img class="navbar-logo" src="Icons/logo.png" alt="Logo Animador 2D">
+      <span class="navbar-title">Animador 2D</span>
+    </div>
+  </nav>
 
   <main class="app-main">
-    <section id="state-init">
+    <section id="state-init" class="state-init">
       <div class="upload-section">
         <div id="drop-zone" class="drop-zone">
           <input type="file" id="file-input" accept=".png,.jpg,.jpeg,image/png,image/jpeg" class="hidden">
@@ -33,14 +35,7 @@
     </section>
 
     <section id="state-loaded" class="workspace hidden">
-      <div class="preview-column">
-        <div id="preview-stage" class="preview-stage">
-          <canvas id="preview-canvas"></canvas>
-        </div>
-        <p id="image-info" class="image-info"></p>
-      </div>
-
-      <div class="controls-column">
+      <aside class="sidebar">
         <div class="panel">
           <h2>Animaciones</h2>
           <div id="animation-list" class="animation-list"></div>
@@ -75,8 +70,15 @@
         <div class="panel actions">
           <button id="btn-generate" class="btn btn-primary">Generar GIF</button>
           <button id="btn-reset" class="btn btn-secondary">Nueva imagen</button>
-          <a id="btn-download" class="btn btn-success disabled">Descargar</a>
+          <a id="btn-download" class="btn btn-primary disabled">Descargar</a>
         </div>
+      </aside>
+
+      <div class="preview-column">
+        <div id="preview-stage" class="preview-stage">
+          <canvas id="preview-canvas"></canvas>
+        </div>
+        <p id="image-info" class="image-info"></p>
       </div>
     </section>
 
