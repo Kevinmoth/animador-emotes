@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animador 2D · Generador de GIF</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>Animador 2D</h1>
+    <p class="tagline">Carga una imagen, elige una animación cinematográfica y descarga tu GIF</p>
+  </header>
+
+  <main class="app-main">
+    <section id="state-init">
+      <div class="upload-section">
+        <div id="drop-zone" class="drop-zone">
+          <input type="file" id="file-input" accept=".png,.jpg,.jpeg,image/png,image/jpeg" class="hidden">
+          <div class="drop-content">
+            <div class="drop-icon">⬆</div>
+            <p>Arrastra tu imagen aquí</p>
+            <p class="drop-hint">o</p>
+            <button id="browse-btn" class="btn btn-secondary">Buscar archivo</button>
+            <p class="drop-meta">PNG o JPG · Máx 10MB · Mín 64x64px</p>
+          </div>
+        </div>
+        <div id="error-box" class="error-box hidden">
+          <span id="error-text"></span>
+        </div>
+      </div>
+    </section>
+
+    <section id="state-loaded" class="workspace hidden">
+      <div class="preview-column">
+        <div id="preview-stage" class="preview-stage">
+          <canvas id="preview-canvas"></canvas>
+        </div>
+        <p id="image-info" class="image-info"></p>
+      </div>
+
+      <div class="controls-column">
+        <div class="panel">
+          <h2>Animaciones</h2>
+          <div id="animation-list" class="animation-list"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Parámetros</h2>
+          <div id="params-container" class="hidden">
+            <div class="param-row">
+              <label>Duración</label>
+              <input type="range" id="duration" min="0.5" max="5" step="0.1" value="1.5">
+              <span id="duration-val" class="param-val">1.5s</span>
+            </div>
+            <div class="param-row">
+              <label>Velocidad</label>
+              <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1.0">
+              <span id="speed-val" class="param-val">1.0x</span>
+            </div>
+            <div id="param-controls"></div>
+            <div class="param-row">
+              <label>FPS</label>
+              <select id="fps" class="param-select">
+                <option value="12">12</option>
+                <option value="24" selected>24</option>
+                <option value="30">30</option>
+                <option value="60">60</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel actions">
+          <button id="btn-generate" class="btn btn-primary">Generar GIF</button>
+          <button id="btn-reset" class="btn btn-secondary">Nueva imagen</button>
+          <a id="btn-download" class="btn btn-success disabled">Descargar</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="state-generating" class="generating hidden">
+      <div class="generating-box">
+        <div class="spinner"></div>
+        <h2>Generando GIF...</h2>
+        <div class="progress-track">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <p id="progress-text" class="progress-text">0%</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/utils/easing.js"></script>
+  <script src="js/utils/canvas-renderer.js"></script>
+  <script src="lib/gif.js"></script>
+  <script src="js/utils/gif-generator.js"></script>
+  <script src="js/animator.js"></script>
+  <script src="js/animations/base.js"></script>
+  <script src="js/animations/spin.js"></script>
+  <script src="js/animations/bounce.js"></script>
+  <script src="js/animations/shake.js"></script>
+  <script src="js/animations/pulse.js"></script>
+  <script src="js/animations/flip.js"></script>
+  <script src="js/animations/wave.js"></script>
+  <script src="js/animations/jello.js"></script>
+  <script src="js/animations/orbit.js"></script>
+  <script src="js/animations/tilt.js"></script>
+  <script src="js/animations/pop.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

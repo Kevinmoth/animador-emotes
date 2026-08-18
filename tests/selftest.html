@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>selftest-running</title>
+</head>
+<body style="background:#fff">
+<div id="result" style="font:20px monospace;padding:20px;white-space:pre-wrap"></div>
+<script src="../js/config.js"></script>
+<script src="../js/utils/easing.js"></script>
+<script src="../js/utils/canvas-renderer.js"></script>
+<script src="../js/animator.js"></script>
+<script src="../js/animations/base.js"></script>
+<script src="../js/animations/spin.js"></script>
+<script src="../js/animations/bounce.js"></script>
+<script src="../js/animations/shake.js"></script>
+<script src="../js/animations/pulse.js"></script>
+<script src="../js/animations/flip.js"></script>
+<script src="../js/animations/wave.js"></script>
+<script src="../js/animations/jello.js"></script>
+<script src="../js/animations/orbit.js"></script>
+<script src="../js/animations/tilt.js"></script>
+<script src="../js/animations/pop.js"></script>
+<script src="../lib/gif.js"></script>
+<script src="../js/utils/gif-generator.js"></script>
+<script>
+(async () => {
+  const results = {};
+  const errors = [];
+
+  function makeTestImage() {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 256, 256);
+    grad.addColorStop(0, '#6c5ce7');
+    grad.addColorStop(1, '#fd79a8');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 90px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('A', 128, 130);
+    const img = new Image();
+    img.src = c.toDataURL('image/png');
+    return img;
+  }
+
+  try {
+    const image = await new Promise((res, rej) => {
+      const img = makeTestImage();
+      img.onload = () => res(img);
+      img.onerror = rej;
+    });
+
+    // 1. Verificar todas las animaciones registradas
+    const ids = Object.keys(AnimationRegistry);
+    results.registered = ids.length;
+    if (ids.length !== 10) throw new Error('Expected 10 animations, got ' + ids.length);
+
+    // 2. Verificar que cada animación produce transform válido en t=0 y t=0.5 y t=1
+    let animChecks = 0;
+    for (const id of ids) {
+      const meta = AnimationRegistry[id];
+      const anim = new meta.AnimationClass({ duration: 1.5, speed: 1.0 });
+      anim.getDuration(); // sanity
+      for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+        const f = anim.getFrame(t);
+        if (typeof f.x !== 'number' || typeof f.y !== 'number' ||
+            typeof f.rotation !== 'number' ||
+            typeof f.scaleX !== 'number' || typeof f.scaleY !== 'number' ||
+            typeof f.skewX !== 'number' || typeof f.skewY !== 'number') {
+          throw new Error(id + ' invalid frame at t=' + t);
+        }
+        if (!isFinite(f.x) || !isFinite(f.y) || !isFinite(f.rotation)) {
+          throw new Error(id + ' non-finite value at t=' + t);
+        }
+        animChecks++;
+      }
+    }
+    results.frameChecks = animChecks;
+
+    // 3. Render en canvas para cada animación
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 256;
+    for (const id of ids) {
+      const meta = AnimationRegistry[id];
+      const anim = new meta.AnimationClass({ duration: 1, speed: 1 });
+      const animator = new Animator(canvas, image, anim);
+      // Probar varios instantes; basta con que al menos uno dibuje algo visible
+      // (en flips ciertos t quedan "de canto" con scale ~0, cosa normal)
+      let everVisible = false;
+      for (const t of [0.15, 0.35, 0.65, 0.85]) {
+        animator.renderFrame(t);
+        const data = canvas.getContext('2d').getImageData(0, 0, 256, 256).data;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] > 0) { everVisible = true; break; }
+        }
+        if (everVisible) break;
+      }
+      if (!everVisible) throw new Error(id + ' rendered blank frame');
+    }
+    results.rendered = ids.length;
+
+    // 4. Generar GIF de prueba completo (spin, 12fps, 0.5s => 6 frames)
+    // La ruta del worker es relativa a la página; desde /tests/ hay que subir un nivel
+    CONFIG.gifOptions.workerScript = '../lib/gif.worker.js';
+    const gifCanvas = document.createElement('canvas');
+    gifCanvas.width = 128; gifCanvas.height = 128;
+    const spinMeta = AnimationRegistry['spin'];
+    const spinAnim = new spinMeta.AnimationClass({ duration: 0.5, speed: 1 });
+    const gifAnimator = new Animator(gifCanvas, image, spinAnim);
+    const blob = await GIFGenerator.generate(gifAnimator, { fps: 12 }, () => {});
+    if (!(blob instanceof Blob) || blob.size === 0) throw new Error('GIF blob empty');
+    results.gifSize = blob.size;
+    results.gifType = blob.type;
+
+    document.title = 'SELFTEST-PASS ' + JSON.stringify(results);
+    document.getElementById('result').textContent = 'SELFTEST-PASS\n' + JSON.stringify(results, null, 2);
+  } catch (err) {
+    errors.push(err.message);
+    document.title = 'SELFTEST-FAIL ' + errors.join(' | ');
+    document.getElementById('result').textContent = 'SELFTEST-FAIL\n' + errors.join('\n');
+  }
+})();
+</script>
+</body>
+</html>
